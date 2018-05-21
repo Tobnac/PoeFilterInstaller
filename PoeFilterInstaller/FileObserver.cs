@@ -10,13 +10,13 @@ namespace PoeFilterInstaller
 {
     public class FileObserver
     {
-        private string FilterFolder = "%userprofile%\\Documents\\My Games\\Path of Exile";
-        private List<string> SourceFolders = new List<string>()
+        public bool ReplaceNewest { get; set; } = true;
+        public string FilterFolder { get; set; } = "%userprofile%\\Documents\\My Games\\Path of Exile";
+        public List<string> SourceFolders { get; set; } = new List<string>()
         {
             "%userprofile%\\Desktop", "%userprofile%\\Downloads"
-        };
+        };        
 
-        private bool replaceNewest = true;
         private List<FileSystemWatcher> watchers = new List<FileSystemWatcher>();
 
         public void Run()
@@ -50,8 +50,6 @@ namespace PoeFilterInstaller
 
             // move existing files
             OnChange(null, null);
-
-            Console.WriteLine("started");
         }
 
         private void OnChange(object sender, FileSystemEventArgs arg)
@@ -59,11 +57,22 @@ namespace PoeFilterInstaller
             // wait for download to finish
             Thread.Sleep(300);
 
+            // all folders
             foreach (var path in SourceFolders)
             {
+                // direct files
                 foreach (var file in Directory.EnumerateFiles(path))
                 {
                     CheckOutNewFile(file);
+                }
+
+                // files in sub folders (for archives, etc.)
+                foreach (var folder in Directory.EnumerateDirectories(path))
+                {
+                    foreach (var file in Directory.EnumerateFiles(folder))
+                    {
+                        CheckOutNewFile(file);
+                    }
                 }
             }
         }
@@ -81,7 +90,7 @@ namespace PoeFilterInstaller
             Console.WriteLine("Moving to filterFolder: " + originPath);
             var fileName = originPath.Split('\\').Last();
 
-            if (replaceNewest)
+            if (this.ReplaceNewest)
             {
                 var currentFilter = GetNewestFilter();
                 File.Replace(originPath, currentFilter, currentFilter + "_new");
@@ -103,10 +112,10 @@ namespace PoeFilterInstaller
         private string GetNewestFilter()
         {
             return Directory
-                .EnumerateFiles(FilterFolder)
+                .EnumerateFiles(this.FilterFolder)
                 .Where(x => IsFilterFile(x))
                 .OrderByDescending(x => File.GetCreationTimeUtc(x))
-                .First();
+                .FirstOrDefault();
         }
 
         private bool IsFilterFile(string file)

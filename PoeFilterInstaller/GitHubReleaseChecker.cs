@@ -11,10 +11,12 @@ namespace PoeFilterInstaller
 {
     public class GitHubReleaseChecker
     {
+        public int CheckIntervalSeconds { get; set; } = 10;
+        public event EventHandler OnNewFilterVersions;
+
         private GitHubReleases latestRelease;
         private readonly string apiUrl = "https://api.github.com/repos/NeverSinkDev/NeverSink-Filter/releases";
         private readonly WebClient client = new WebClient();
-        public int CheckIntervalSeconds { get; set; } = 10;
 
         public void Run()
         {
@@ -30,15 +32,13 @@ namespace PoeFilterInstaller
             this.client.Headers.Add("User-Agent: Other");
             var jsonString = this.client.DownloadString(this.apiUrl);
             var jsonObj = GitHubReleases.FromJson(jsonString);
-            return jsonObj[0];
+            return jsonObj.First();
         }
 
         private void ProcessRelease(GitHubReleases release)
         {
             var now = DateTimeOffset.Now;
             var releaseTime = release.PublishedAt;
-            releaseTime.AddMinutes(5);
-
             var releaseAge = now.Subtract(releaseTime);
             
             if (this.latestRelease == null || !release.PublishedAt.Equals(this.latestRelease.PublishedAt))
@@ -66,6 +66,7 @@ namespace PoeFilterInstaller
             else
             {
                 Console.WriteLine("NEW FILTER RELEASE!!!! NEVERSINK TOOK OUR ENERGY!");
+                this.OnNewFilterVersions?.Invoke(release, EventArgs.Empty);
             }
 
             Console.WriteLine(release.Name);
